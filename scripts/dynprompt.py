@@ -4,10 +4,9 @@ import gradio as gr
 from modules import scripts
 from modules.processing import fix_seed
 from dynprompt.expander import PromptExpander, WILDCARD_TOKEN_RE
-from modules import script_callbacks
 
 EXT_NAME = "Dynamic Prompt (Forge)"
-EXT_VER = "1.5.0"
+EXT_VER = "1.5.1"
 
 # Default wildcards dir: <this_extension_root>/wildcards
 DEFAULT_WILDCARD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "wildcards")
@@ -147,12 +146,16 @@ class DynPromptScript(scripts.Script):
 
         all_prompts = []
         all_negative = []
+        raw_prompt = p.prompt or ""
+        raw_negative = p.negative_prompt or ""
 
-        # Raw user inputs (used both for expansion and token detection)
-        pos_text_raw = p.prompt or ""
-        neg_text_raw = p.negative_prompt or ""
+        # setup_prompts() has already applied styles; expand those so styles aren't dropped
+        styled_pos = list(getattr(p, "all_prompts", None) or [])
+        styled_neg = list(getattr(p, "all_negative_prompts", None) or [])
 
         for i in range(total):
+            pos_text_raw = styled_pos[i] if i < len(styled_pos) else (p.prompt or "")
+            neg_text_raw = styled_neg[i] if i < len(styled_neg) else (p.negative_prompt or "")
             expander = PromptExpander(seed=base_seed + i, wildcard_dir=wildcard_dir, variety=variety)
 
             # A) Positive prompt: full expansion (choices -> wildcards -> choices)
@@ -186,23 +189,17 @@ class DynPromptScript(scripts.Script):
         p.all_negative_prompts = all_negative
         p.prompt = all_prompts[0]
         p.negative_prompt = all_negative[0]
+        # main_* feed the grid infotext; they were captured from the raw prompt in setup_prompts()
+        p.main_prompt = all_prompts[0]
+        p.main_negative_prompt = all_negative[0]
 
-        # Store expanded prompts in extra_generation_params for infotext
-        p.extra_generation_params["Prompt"] = all_prompts[0]
-        p.extra_generation_params["Negative prompt"] = all_negative[0]
-        p.extra_generation_params["Raw prompt"] = pos_text_raw
-        p.extra_generation_params["Raw negative prompt"] = neg_text_raw
+        # Hires fix copies the raw prompt when its own prompt is left empty; give it the expansions instead
+        if getattr(p, "enable_hr", False):
+            if getattr(p, "hr_prompt", None) == raw_prompt:
+                p.all_hr_prompts = list(all_prompts)
+            if getattr(p, "hr_negative_prompt", None) == raw_negative:
+                p.all_hr_negative_prompts = list(all_negative)
 
-    def before_image_saved(self, p, **kwargs):
-        """
-        Hook to ensure expanded prompts are embedded in the image's infotext before saving.
-        """
-        # Reinforce expanded prompts in infotext
-        if hasattr(p, "all_prompts") and p.all_prompts:
-            p.extra_generation_params["Prompt"] = p.all_prompts[0]
-        if hasattr(p, "all_negative_prompts") and p.all_negative_prompts:
-            p.extra_generation_params["Negative prompt"] = p.all_negative_prompts[0]
-        print(f"[{EXT_NAME}] Before image saved: Embedded expanded prompts in infotext")
-
-# Register the callback to hook into image saving
-script_callbacks.on_before_image_saved(DynPromptScript().before_image_saved)
+        # The infotext already carries each image's expanded prompt; keep the originals for reference
+        p.extra_generation_params["Raw prompt"] = raw_prompt
+        p.extra_generation_params["Raw negative prompt"] = raw_negative

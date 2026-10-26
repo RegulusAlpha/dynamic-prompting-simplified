@@ -121,6 +121,13 @@ Negative: lowres, bad anatomy, __hats-mir__
 
 ## 📝 Changelog
 
+### 1.5.1
+- **Send to img2img / inpaint**: the 🖼️ and 🎨 buttons now send the expanded prompts of the selected image instead of the raw `__wildcards__`.
+- **Hires fix**: when the hires prompt is left empty, the hires pass now uses the expanded prompts instead of the raw `__wildcards__`.
+- **Grid infotext**: the grid image's PNG info now has the expanded prompts.
+- **Styles**: selected styles are no longer dropped, and wildcards inside a style are expanded.
+- **Batch infotext**: the `Prompt` / `Negative prompt` extra params are removed. They always held the first image's prompt, so pasting the infotext of a later image in a batch gave the wrong prompt. `Raw prompt` / `Raw negative prompt` are still stored.
+
 ### 1.5.0
 - **Variety slider**: an extra randomness lane per seed (0 = off).
 - **Subfolder and dotted wildcard names**: `__clothes/tops__` and `__tops.v1__` work. Paths outside the wildcard directory are blocked.
