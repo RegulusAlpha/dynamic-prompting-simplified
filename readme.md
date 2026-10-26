@@ -55,10 +55,11 @@ top hat
 {tall hat|short hat|medium hat}
 ```
 
+- Braces in a `-mir` file are flattened, so this file has six options.
 - Positive prompt: `portrait, __hats-mir__`
 - Negative prompt: `lowres, __hats-mir__`
-  - If pos → `red hat`, neg → `blue hat, green hat`
-  - If pos → `short hat`, neg → `tall hat, medium hat`
+  - If pos → `red hat`, neg → `blue hat, green hat, tall hat, short hat, medium hat`
+- A `__name-mir__` in the negative that the positive never used becomes all of its options.
 
 This ensures that the **negative prompt excludes the token chosen in the positive prompt.**
 
@@ -105,16 +106,34 @@ Negative: lowres, bad anatomy, __hats-mir__
 
 ### UI Options
 - **Enable dynamic prompt expansion** — master toggle.
-- **Wildcard directory** — where your `.txt` wildcard files live.
+- **Wildcard directory** — where your `.txt` wildcard files live (subfolders work: `__clothes/tops__`).
+- **Variety** — extra randomness lane. 0 = off; the same seed + variety reproduce the same prompt.
 - **Automatically mirror -mir wildcards without explicitly adding them to the negative prompt** —
   When on, any `__*-mir__` discovered in the **positive** (even nested within another wildcard) is appended to the **negative** prompt and expanded as the “others.”
 
 ## ✅ Notes
 
 - Missing wildcard files resolve to empty string.
-- Braces expand until fully resolved.
-- Safety caps prevent runaway expansion.
-- Deterministic per seed: line selection for wildcards is stable across runs; within a mirrored brace, the chosen index is mirrored so the negative sees the remaining options.
+- Braces expand until fully resolved (up to 1024 `{…}` blocks and 1024 `__tokens__` per pass).
+- A single-line wildcard file is split into choices only when the whole line is one `{…}` block; `{a|b} dress, {c|d}` is one option.
+- Deterministic per seed: only braces and wildcards advance the randomness, so fixed text doesn't change picks.
+- Uses the same expander as the ComfyUI node: the same seed + variety give the same prompts in both.
+
+## 📝 Changelog
+
+### 1.5.0
+- **Variety slider**: an extra randomness lane per seed (0 = off).
+- **Subfolder and dotted wildcard names**: `__clothes/tops__` and `__tops.v1__` work. Paths outside the wildcard directory are blocked.
+- **Empty brace branches**: `{a|b|}` can pick nothing, so segments can be optional.
+- **New randomness**: only braces and wildcards advance the random picks, so editing fixed text doesn't change them. The same seed gives different prompts than 1.4.2.
+- **Expansion order**: braces → wildcards → braces from wildcard lines.
+- **`-mir` files**: braces are flattened into separate options, in single-line and multi-line files, with duplicates removed.
+- **`__name-mir__` in the negative** becomes the options the positive did not pick, or all of its options if the positive never used it.
+- **Auto-mirror**: the mirrored options are merged into the negative with case-insensitive de-duplication.
+- **Single-line wildcard files** are split into choices only when the whole line is one `{…}` block.
+- Repeated commas and extra spaces are removed from the expanded prompts.
+- Expansion limits are raised to 1024 `{…}` blocks and 1024 `__tokens__` per pass.
+- `.gitignore`: wildcard files are ignored, except the `hats.txt` and `hats-mir.txt` examples.
 
 ## Licence & Contributing
 

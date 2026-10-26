@@ -1,0 +1,3 @@
+wildcards/*
+!wildcards/hats.txt
+!wildcards/hats-mir.txt
